@@ -1,0 +1,8 @@
+[package]
+name = "pinyin"
+version = "0.1.0"
+authors = ["Jiajie Chen <noc@jiegec.ac.cn>"]
+edition = "2018"
+
+[dependencies]
+structopt = "0.2"
