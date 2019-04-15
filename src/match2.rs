@@ -1,7 +1,13 @@
-use std::iter::Iterator;
-use serde::{Serialize, Deserialize};
-use std::str::Chars;
+use super::*;
+use flate2::read::GzDecoder;
+use flate2::write::GzEncoder;
+use flate2::Compression;
+use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
+use std::fs::File;
+use std::io::Cursor;
+use std::iter::Iterator;
+use std::str::Chars;
 
 pub type Match2Prefix = [char; 1];
 
@@ -13,7 +19,7 @@ impl Match2 {
         Match2Iter {
             cur: None,
             chars: input.chars(),
-            valid
+            valid,
         }
     }
 
@@ -39,7 +45,7 @@ impl Match2 {
 pub struct Match2Iter<'a> {
     cur: Option<char>,
     chars: Chars<'a>,
-    valid: &'a BTreeSet<char>
+    valid: &'a BTreeSet<char>,
 }
 
 impl<'a> Iterator for Match2Iter<'a> {
@@ -56,7 +62,7 @@ impl<'a> Iterator for Match2Iter<'a> {
                                 let result = Match2(([ch], cur));
                                 self.cur = Some(cur);
                                 return Some(result);
-                            },
+                            }
                             _ => {
                                 self.cur = Some(cur);
                             }
@@ -64,9 +70,68 @@ impl<'a> Iterator for Match2Iter<'a> {
                     } else {
                         self.cur = None;
                     }
-                },
-                None => return None
+                }
+                None => return None,
             }
         }
+    }
+}
+
+impl Model<Match2> {
+    pub fn load() -> Self {
+        let data = GzDecoder::new(Cursor::new(include_bytes!("model2.json.gz").to_vec()));
+        let json_model: JsonModel = serde_json::from_reader(data).expect("json");
+        let mut prob = BTreeMap::new();
+        for (key, value) in &json_model.prob {
+            prob.insert(Match2::from_str(key), *value);
+        }
+
+        Model {
+            mapping: json_model.mapping,
+            prob,
+        }
+    }
+
+    pub fn save(&self) {
+        let writer = GzEncoder::new(
+            File::create("model2.json.gz").expect("open file"),
+            Compression::default(),
+        );
+
+        let mut prob = BTreeMap::new();
+        for (key, value) in &self.prob {
+            prob.insert(key.to_string(), *value);
+        }
+
+        let json_model = JsonModel {
+            mapping: self.mapping.clone(),
+            prob,
+        };
+        serde_json::to_writer(writer, &json_model).expect("json");
+    }
+}
+
+impl Match for Match2 {
+    type Prefix = Match2Prefix;
+
+    fn min_len() -> usize {
+        2
+    }
+
+    fn get_prefix(input: &[Vec<char>]) -> Vec<Self::Prefix> {
+        let mut res = Vec::new();
+        for word in input.iter() {
+            assert!(word.len() == Self::min_len() - 1);
+            res.push([word[0]]);
+        }
+        res
+    }
+
+    fn shift_prefix(&self) -> Self::Prefix {
+        [(self.0).1]
+    }
+
+    fn new(prefix: &Self::Prefix, end: char) -> Self {
+        Match2((prefix.clone(), end))
     }
 }

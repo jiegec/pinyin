@@ -2,19 +2,19 @@ extern crate structopt;
 
 use encoding_rs::GBK;
 use pinyin;
-use std::collections::{BTreeSet,BTreeMap};
+use serde::Deserialize;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs::File;
 use std::io::Read;
 use std::path::PathBuf;
 use structopt::StructOpt;
-use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
 pub struct News {
     html: String,
     time: String,
     title: String,
-    url: String
+    url: String,
 }
 
 #[derive(StructOpt, Debug)]
@@ -62,7 +62,10 @@ fn main() {
     for file in opt.files {
         println!("Processing file {:?}", file);
         let mut data = Vec::new();
-        File::open(file).expect("open").read_to_end(&mut data).expect("read");
+        File::open(file)
+            .expect("open")
+            .read_to_end(&mut data)
+            .expect("read");
         let content = GBK.decode(&data).0;
         for line in content.split(|ch| ch == '\r' || ch == '\n') {
             if line.is_empty() {

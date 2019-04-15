@@ -37,11 +37,12 @@ fn main() -> Result<()> {
 
     loop {
         let mut line = String::new();
-        if input_file.read_line(&mut line).is_err() || line.is_empty() {
+        if input_file.read_line(&mut line).is_err() {
             break;
         }
         let result = model.convert(&line);
         output_file.write(&result.as_bytes())?;
+        output_file.flush()?;
     }
 
     Ok(())
