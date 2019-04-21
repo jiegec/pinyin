@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
-use std::collections::VecDeque;
 use std::fmt::Debug;
 
 mod match1;
@@ -8,6 +7,9 @@ pub use match1::*;
 
 mod match2;
 pub use match2::*;
+
+mod match3;
+pub use match3::*;
 
 pub trait Match: Ord + Debug {
     type Prefix: Ord + Debug + Match;
@@ -21,6 +23,8 @@ pub trait Match: Ord + Debug {
     fn shift_prefix(&self) -> Self::Prefix;
     
     fn empty() -> Self;
+
+    fn from_str(s: &str) -> Self;
 }
 
 #[derive(Debug)]
@@ -56,12 +60,16 @@ impl<T: Match> Model<T> {
 
         let mut cur_prefixes_prob: BTreeMap<T::Prefix, (f64, f64, Vec<char>)> = BTreeMap::new();
         if let Some(last) = last_model {
+            println!("last {:?}", last);
             let current = words[min_len-1];
             let chars = self.mapping.get(current).expect("found pinyin");
             for ch in chars {
-                for (prefix, (old_prob, sum_prob, path)) in last.iter() {
-                    let new_prefix = T::Prefix::new(&prefix, path[path.len()-1]);
+                for (_prefix, (old_prob, _sum_prob, path)) in last.iter() {
+                    //let new_prefix = T::Prefix::new(&prefix, path[path.len()-1]);
+                    let s: String = path.iter().collect();
+                    let new_prefix = T::Prefix::from_str(&s);
                     let new_match = T::new(&new_prefix, *ch);
+                    println!("{:?}", new_match);
                     if let Some(prob) = self.prob.get(&new_match) {
                         cur_prefixes_prob.insert(new_prefix, (*old_prob * prob, 0.0, path.clone()));
                     }
@@ -70,6 +78,7 @@ impl<T: Match> Model<T> {
         } else {
             cur_prefixes_prob.insert(T::Prefix::empty(), (1.0, 0.0, Vec::new()));
         }
+        println!("{:?}", cur_prefixes_prob);
         for i in (min_len - 1)..words.len() {
             let current = words[i];
             let chars = self.mapping.get(current).expect("found pinyin");
@@ -94,6 +103,7 @@ impl<T: Match> Model<T> {
                 }
             }
             cur_prefixes_prob = new_prefixes_prob;
+            println!("{:?}", cur_prefixes_prob);
         }
 
         let mut ans = Vec::new();

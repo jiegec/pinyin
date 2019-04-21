@@ -26,11 +26,6 @@ impl Match1 {
         (self.0).0.clone()
     }
 
-    pub fn from_str(s: &str) -> Match1 {
-        let mut ch = s.chars();
-        let first = ch.next().unwrap();
-        Match1((first, first))
-    }
 
     pub fn to_string(&self) -> String {
         let mut res = String::with_capacity(2);
@@ -102,7 +97,7 @@ impl Match for Match1Prefix {
         0
     }
 
-    fn get_prefix(input: &[Vec<char>]) -> Vec<Self::Prefix> {
+    fn get_prefix(_input: &[Vec<char>]) -> Vec<Self::Prefix> {
         unimplemented!()
     }
 
@@ -110,12 +105,16 @@ impl Match for Match1Prefix {
         *self
     }
 
-    fn new(prefix: &Self::Prefix, end: char) -> Self {
+    fn new(_prefix: &Self::Prefix, _end: char) -> Self {
         unimplemented!()
     }
 
     fn empty() -> Self {
         ' '
+    }
+
+    fn from_str(_s: &str) -> Self {
+        unimplemented!()
     }
 }
 
@@ -139,11 +138,17 @@ impl Match for Match1 {
         (self.0).1
     }
 
-    fn new(prefix: &Self::Prefix, end: char) -> Self {
+    fn new(_prefix: &Self::Prefix, end: char) -> Self {
         Match1((end, end))
     }
 
     fn empty() -> Self {
         Match1((' ', ' '))
+    }
+
+    fn from_str(s: &str) -> Match1 {
+        let mut ch = s.chars();
+        let first = ch.next().unwrap();
+        Match1((first, first))
     }
 }

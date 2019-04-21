@@ -35,6 +35,7 @@ fn main() -> Result<()> {
 
     let model1 = pinyin::Model::<pinyin::Match1>::load();
     let model2 = pinyin::Model::<pinyin::Match2>::load();
+    let model3 = pinyin::Model::<pinyin::Match3>::load();
 
     loop {
         let mut line = String::new();
@@ -49,10 +50,16 @@ fn main() -> Result<()> {
             let (result1, _) = model1.convert(&vec![words[0]], None);
             output_file.write(&result1.as_bytes())?;
             output_file.flush()?;
-        } else {
+        } else if words.len() == 2 {
             let (_, prob1) = model1.convert(&vec![words[0]], None);
             let (result2, _) = model2.convert(&words, Some(prob1));
             output_file.write(&result2.as_bytes())?;
+            output_file.flush()?;
+        } else {
+            let (_, prob1) = model1.convert(&vec![words[0]], None);
+            let (_, prob2) = model2.convert(&vec![words[0], words[1]], Some(prob1));
+            let (result3, _) = model3.convert(&words, Some(prob2));
+            output_file.write(&result3.as_bytes())?;
             output_file.flush()?;
         }
     }
