@@ -30,7 +30,6 @@ struct Opt {
 }
 fn main() {
     let opt = Opt::from_args();
-    let mut model: pinyin::Model<pinyin::Match2> = pinyin::Model::empty();
 
     // insert pinyin mapping
     let mut all_char: BTreeSet<char> = BTreeSet::new();
@@ -40,6 +39,9 @@ fn main() {
         .read_to_end(&mut pinyin_data)
         .expect("read pinyin");
     let pinyin = GBK.decode(&pinyin_data).0;
+
+    let mut model1: pinyin::Model<pinyin::Match1> = pinyin::Model::empty();
+    let mut model2: pinyin::Model<pinyin::Match2> = pinyin::Model::empty();
     for line in pinyin.split(|ch| ch == '\r' || ch == '\n') {
         if line.is_empty() {
             continue;
@@ -52,13 +54,15 @@ fn main() {
             all_char.insert(*ch);
         }
 
-        model.mapping.insert(pinyin, chinese);
+        model1.mapping.insert(pinyin.clone(), chinese.clone());
+        model2.mapping.insert(pinyin.clone(), chinese.clone());
     }
-    println!("Mapping {} pinyin", model.mapping.len());
 
     // collect probabilities
-    let mut count: BTreeMap<pinyin::Match2Prefix, u32> = BTreeMap::new();
-    let mut occur: BTreeMap<pinyin::Match2, u32> = BTreeMap::new();
+    let mut count1: BTreeMap<pinyin::Match1Prefix, u32> = BTreeMap::new();
+    let mut occur1: BTreeMap<pinyin::Match1, u32> = BTreeMap::new();
+    let mut count2: BTreeMap<pinyin::Match2Prefix, u32> = BTreeMap::new();
+    let mut occur2: BTreeMap<pinyin::Match2, u32> = BTreeMap::new();
     for file in opt.files {
         println!("Processing file {:?}", file);
         let mut data = Vec::new();
@@ -74,17 +78,29 @@ fn main() {
             let news: News = serde_json::from_str(line).expect("parsing");
             let match2_iter = pinyin::Match2::iter(&news.html, &all_char);
             for match2 in match2_iter {
-                *count.entry(match2.get_prefix()).or_insert(0) += 1;
-                *occur.entry(match2).or_insert(0) += 1;
+                *count2.entry(match2.get_prefix()).or_insert(0) += 1;
+                *occur2.entry(match2).or_insert(0) += 1;
+            }
+
+            let match1_iter = pinyin::Match1::iter(&news.html, &all_char);
+            for match1 in match1_iter {
+                *count1.entry(match1.get_prefix()).or_insert(0) += 1;
+                *occur1.entry(match1).or_insert(0) += 1;
             }
         }
     }
 
-    for (match2, o) in &occur {
-        let prob = (*o as f32) / (*count.get(&match2.get_prefix()).expect("found") as f32);
-        model.prob.insert(*match2, prob);
+    for (match1, o) in &occur1 {
+        let prob = (*o as f64) / (*count1.get(&match1.get_prefix()).expect("found") as f64);
+        model1.prob.insert(*match1, prob);
+    }
+
+    for (match2, o) in &occur2 {
+        let prob = (*o as f64) / (*count2.get(&match2.get_prefix()).expect("found") as f64);
+        model2.prob.insert(*match2, prob);
     }
 
     println!("Saving...");
-    model.save();
+    model1.save();
+    model2.save();
 }

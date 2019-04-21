@@ -33,16 +33,28 @@ fn main() -> Result<()> {
         Box::new(stdout.lock())
     };
 
-    let model = pinyin::Model::<pinyin::Match2>::load();
+    let model1 = pinyin::Model::<pinyin::Match1>::load();
+    let model2 = pinyin::Model::<pinyin::Match2>::load();
 
     loop {
         let mut line = String::new();
         if input_file.read_line(&mut line).is_err() {
             break;
         }
-        let result = model.convert(&line);
-        output_file.write(&result.as_bytes())?;
-        output_file.flush()?;
+        let words: Vec<&str> = line.trim().split(|c| c == ' ').collect();
+        if words.is_empty() {
+            continue;
+        }
+        if words.len() == 1 {
+            let (result1, _) = model1.convert(&vec![words[0]], None);
+            output_file.write(&result1.as_bytes())?;
+            output_file.flush()?;
+        } else {
+            let (_, prob1) = model1.convert(&vec![words[0]], None);
+            let (result2, _) = model2.convert(&words, Some(prob1));
+            output_file.write(&result2.as_bytes())?;
+            output_file.flush()?;
+        }
     }
 
     Ok(())

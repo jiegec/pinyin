@@ -9,66 +9,51 @@ use std::io::Cursor;
 use std::iter::Iterator;
 use std::str::Chars;
 
-pub type Match2Prefix = Match1;
+pub type Match1Prefix = char;
 
 #[derive(Debug, Ord, PartialOrd, Eq, PartialEq, Serialize, Deserialize, Copy, Clone)]
-pub struct Match2((Match2Prefix, char));
+pub struct Match1((Match1Prefix, char));
 
-impl Match2 {
-    pub fn iter<'a>(input: &'a str, valid: &'a BTreeSet<char>) -> Match2Iter<'a> {
-        Match2Iter {
-            cur: None,
+impl Match1 {
+    pub fn iter<'a>(input: &'a str, valid: &'a BTreeSet<char>) -> Match1Iter<'a> {
+        Match1Iter {
             chars: input.chars(),
             valid,
         }
     }
 
-    pub fn get_prefix(&self) -> Match2Prefix {
+    pub fn get_prefix(&self) -> Match1Prefix {
         (self.0).0.clone()
     }
 
-    pub fn from_str(s: &str) -> Match2 {
+    pub fn from_str(s: &str) -> Match1 {
         let mut ch = s.chars();
         let first = ch.next().unwrap();
-        let second = ch.next().unwrap();
-        Match2((Match1::new(&first, first), second))
+        Match1((first, first))
     }
 
     pub fn to_string(&self) -> String {
         let mut res = String::with_capacity(2);
-        res.push_str(&(self.0).0.to_string());
         res.push((self.0).1);
         res
     }
 }
 
-pub struct Match2Iter<'a> {
-    cur: Option<char>,
+pub struct Match1Iter<'a> {
     chars: Chars<'a>,
     valid: &'a BTreeSet<char>,
 }
 
-impl<'a> Iterator for Match2Iter<'a> {
-    type Item = Match2;
+impl<'a> Iterator for Match1Iter<'a> {
+    type Item = Match1;
 
-    fn next(&mut self) -> Option<Match2> {
+    fn next(&mut self) -> Option<Match1> {
         loop {
             let cur = self.chars.next();
             match cur {
                 Some(cur) => {
                     if self.valid.contains(&cur) {
-                        match self.cur {
-                            Some(ch) => {
-                                let result = Match2((Match1::new(&ch, ch), cur));
-                                self.cur = Some(cur);
-                                return Some(result);
-                            }
-                            _ => {
-                                self.cur = Some(cur);
-                            }
-                        }
-                    } else {
-                        self.cur = None;
+                        return Some(Match1((cur, cur)));
                     }
                 }
                 None => return None,
@@ -77,13 +62,13 @@ impl<'a> Iterator for Match2Iter<'a> {
     }
 }
 
-impl Model<Match2> {
+impl Model<Match1> {
     pub fn load() -> Self {
-        let data = GzDecoder::new(Cursor::new(include_bytes!("model2.json.gz").to_vec()));
+        let data = GzDecoder::new(Cursor::new(include_bytes!("model1.json.gz").to_vec()));
         let json_model: JsonModel = serde_json::from_reader(data).expect("json");
         let mut prob = BTreeMap::new();
         for (key, value) in &json_model.prob {
-            prob.insert(Match2::from_str(key), *value);
+            prob.insert(Match1::from_str(key), *value);
         }
 
         Model {
@@ -94,7 +79,7 @@ impl Model<Match2> {
 
     pub fn save(&self) {
         let writer = GzEncoder::new(
-            File::create("model2.json.gz").expect("open file"),
+            File::create("model1.json.gz").expect("open file"),
             Compression::default(),
         );
 
@@ -111,31 +96,54 @@ impl Model<Match2> {
     }
 }
 
-impl Match for Match2 {
-    type Prefix = Match2Prefix;
+impl Match for Match1Prefix {
+    type Prefix = Match1Prefix;
+    fn min_len() -> usize {
+        0
+    }
+
+    fn get_prefix(input: &[Vec<char>]) -> Vec<Self::Prefix> {
+        unimplemented!()
+    }
+
+    fn shift_prefix(&self) -> Self::Prefix {
+        *self
+    }
+
+    fn new(prefix: &Self::Prefix, end: char) -> Self {
+        unimplemented!()
+    }
+
+    fn empty() -> Self {
+        ' '
+    }
+}
+
+impl Match for Match1 {
+    type Prefix = Match1Prefix;
 
     fn min_len() -> usize {
-        2
+        1
     }
 
     fn get_prefix(input: &[Vec<char>]) -> Vec<Self::Prefix> {
         let mut res = Vec::new();
         for word in input.iter() {
             assert!(word.len() == Self::min_len() - 1);
-            res.push(Match1::new(&word[0], word[0]));
+            res.push(word[0]);
         }
         res
     }
 
     fn shift_prefix(&self) -> Self::Prefix {
-        Match1::new(&(self.0).1, (self.0).1)
+        (self.0).1
     }
 
     fn new(prefix: &Self::Prefix, end: char) -> Self {
-        Match2((prefix.clone(), end))
+        Match1((end, end))
     }
 
     fn empty() -> Self {
-        Match2((Match1::empty(), ' '))
+        Match1((' ', ' '))
     }
 }
